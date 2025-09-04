@@ -4,11 +4,14 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+import org.springframework.web.util.UriUtils;
 import upload.upload.domain.Item;
 import upload.upload.domain.UploadFile;
 import upload.upload.dto.ItemForm;
@@ -18,6 +21,7 @@ import upload.upload.service.UploadFileService;
 
 import java.io.IOException;
 import java.net.MalformedURLException;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Optional;
 
@@ -82,6 +86,20 @@ public class ItemController {
     public Resource downloadImage(@PathVariable String filename) throws MalformedURLException {
         return new UrlResource("file:" + fileStore.getFullPath(filename));
     }
-
     //요청본문 requestBody, 응답본문 responseBody를 담아서 보내야 한다.
+    //fileStore.getFullPath(filename)
+    //file:/LYJ/spring/upload_1/e8b8b432-a98c-4682-9abe-dd09fa698121.png
+
+    //다운로드 기능
+    @GetMapping("/attach/{itemId}")
+    public ResponseEntity<Resource> downloadAttach(@PathVariable Long itemId) throws MalformedURLException {
+        Item item = itemService.findOneItem(itemId).orElseThrow();
+        String storeFileName = item.getAttachFile().getStoreFileName();
+        String uploadFileName = item.getAttachFile().getUploadFileName();
+        UrlResource resource = new UrlResource("file:" + fileStore.getFullPath(storeFileName));
+        log.info("uploadFileName={}", uploadFileName);
+        String encodeUploadFileName = UriUtils.encode(uploadFileName, StandardCharsets.UTF_8);
+        String contentDisposition = "attachment; filename=\"" + encodeUploadFileName + "\"";
+        return ResponseEntity.ok().header(HttpHeaders.CONTENT_DISPOSITION, contentDisposition).body(resource);
+    }
 }
